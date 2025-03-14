@@ -1,0 +1,96 @@
+import { File, SystemStatus } from "../types/";
+
+// API base URL - this should match your backend URL
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
+console.log("API connecting to:", API_BASE);
+
+// Get available files
+export async function getAvailableFiles(): Promise<File[]> {
+  try {
+    console.log("Fetching available files from API");
+    const response = await fetch(`${API_BASE}/files`);
+    
+    if (!response.ok) {
+      throw new Error(`Error fetching files: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Files response:", data);
+    return data.files || [];
+  } catch (error) {
+    console.error('Failed to fetch available files:', error);
+    return [];
+  }
+}
+
+// Get system status
+export async function getSystemStatus(): Promise<SystemStatus> {
+  try {
+    console.log("Fetching system status from API");
+    const response = await fetch(`${API_BASE}/status`);
+    
+    if (!response.ok) {
+      throw new Error(`Error fetching status: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Status response:", data);
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch system status:', error);
+    return {
+      downloads: {
+        current_downloads: [],
+        completed_downloads: []
+      },
+      tracker: {
+        address: 'Not connected'
+      },
+      error: 'Failed to connect to backend'
+    };
+  }
+}
+
+// Start downloading a file
+export async function downloadFile(filename: string): Promise<boolean> {
+  try {
+    console.log("Requesting download for file:", filename);
+    const response = await fetch(`${API_BASE}/download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filename }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error starting download: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Download response:", data);
+    return data.success || false;
+  } catch (error) {
+    console.error(`Failed to start download for ${filename}:`, error);
+    return false;
+  }
+}
+
+// Get downloaded files
+export async function getDownloadedFiles(): Promise<string[]> {
+  try {
+    console.log("Fetching downloaded files");
+    const response = await fetch(`${API_BASE}/downloaded`);
+    
+    if (!response.ok) {
+      throw new Error(`Error fetching downloaded files: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Downloaded files response:", data);
+    return data.files || [];
+  } catch (error) {
+    console.error('Failed to fetch downloaded files:', error);
+    return [];
+  }
+}
