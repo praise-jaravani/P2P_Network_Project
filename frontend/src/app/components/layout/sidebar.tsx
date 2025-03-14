@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppContext } from '../../context/app-context';
@@ -15,6 +15,12 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { systemStatus } = useAppContext();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Set isMounted to true after component mounts to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // Helper function to determine if a nav item is active
   const isActive = (path: string) => pathname === path;
@@ -117,14 +123,19 @@ export default function Sidebar() {
               <span className="text-sm font-medium text-gray-900 dark:text-white">{activeDownloads}/{completedDownloads}</span>
             </div>
             
+            {/* Tracker status with client-side only rendering */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-300">Tracker:</span>
-              <span className="flex items-center">
-                <span className={`h-2 w-2 rounded-full mr-2 ${systemStatus ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {systemStatus ? 'Connected' : 'Disconnected'}
+              {isMounted ? (
+                <span className="flex items-center">
+                  <span className={`h-2 w-2 rounded-full mr-2 ${systemStatus ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {systemStatus ? 'Connected' : 'Disconnected'}
+                  </span>
                 </span>
-              </span>
+              ) : (
+                <span className="text-sm font-medium text-gray-400">Loading...</span>
+              )}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Set, Union
 import ast
+import hashlib
 
 # Import the file chunker for file operations
 from core.file_chunker import FileChunker
@@ -397,15 +398,23 @@ class P2PClient:
                     # Read the requested chunk
                     chunk_data = self.chunker.get_chunk(str(file_path), chunk_index)
                     
-                    # Send the chunk
-                    # First send the chunk size as a 4-byte integer
+                    # Calculate hash for the chunk
+                    chunk_hash = hashlib.sha256(chunk_data).hexdigest()
+                    
+                    # Send the hash first (as a fixed-length field for easy parsing)
+                    client_socket.send(chunk_hash.encode('utf-8'))
+                    
+                    # Wait for confirmation that hash was received
+                    client_socket.recv(4)  # Should receive "HASH" as confirmation
+                    
+                    # Send the chunk size as a 4-byte integer
                     chunk_size = len(chunk_data)
                     client_socket.send(chunk_size.to_bytes(4, byteorder='big'))
                     
                     # Then send the chunk data
                     client_socket.sendall(chunk_data)
                     
-                    self.logger.info(f"Sent chunk {chunk_index} of {filename} to {client_address} ({chunk_size} bytes)")
+                    self.logger.info(f"Sent chunk {chunk_index} of {filename} to {client_address} ({chunk_size} bytes, hash: {chunk_hash[:8]}...)")
                 except Exception as e:
                     self.logger.error(f"Error serving chunk: {e}")
                     response = f"Error:{str(e)}"
@@ -647,7 +656,17 @@ class P2PClient:
                     request = f"Download:{(filename, chunk_index)}"
                     client_socket.send(request.encode('utf-8'))
                     
-                    # First receive the chunk size (4 bytes)
+                    # First receive the hash (64 characters for SHA-256)
+                    hash_data = client_socket.recv(64)
+                    if not hash_data or len(hash_data) != 64:
+                        raise Exception("Failed to receive chunk hash")
+                    
+                    expected_hash = hash_data.decode('utf-8')
+                    
+                    # Acknowledge receipt of hash
+                    client_socket.send(b"HASH")
+                    
+                    # Receive the chunk size (4 bytes)
                     size_bytes = client_socket.recv(4)
                     if not size_bytes or len(size_bytes) != 4:
                         raise Exception("Failed to receive chunk size")
@@ -669,7 +688,14 @@ class P2PClient:
                         chunk_data += data
                         bytes_received += len(data)
                     
-                    # Write the chunk to the file
+                    # Verify the chunk integrity
+                    actual_hash = hashlib.sha256(chunk_data).hexdigest()
+                    if actual_hash != expected_hash:
+                        self.logger.error(f"Chunk {chunk_index} failed integrity verification")
+                        self.logger.debug(f"Expected: {expected_hash}, Actual: {actual_hash}")
+                        raise Exception("Chunk integrity verification failed")
+                    
+                    # Write the chunk to the file only if verification passes
                     self.chunker.write_chunk(str(output_path), chunk_data, chunk_index)
                     
                     # Mark chunk as completed
@@ -680,7 +706,7 @@ class P2PClient:
                     completed = self.current_downloads[filename]["completed_chunks"]
                     total = self.current_downloads[filename]["total_chunks"]
                     progress = (completed / total) * 100
-                    self.logger.info(f"Downloaded chunk {chunk_index} of {filename} from {seeder_address} ({completed}/{total}, {progress:.1f}%)")
+                    self.logger.info(f"Downloaded and verified chunk {chunk_index} of {filename} from {seeder_address} ({completed}/{total}, {progress:.1f}%)")
                     
                     # Check if download is complete
                     if completed == total:
@@ -856,6 +882,22 @@ class P2PClient:
         Returns:
             List of filenames available from all seeders
         """
+        # Add caching to prevent too many requests
+        now = time.time()
+        
+        # Initialize cache attributes if they don't exist
+        if not hasattr(self, '_file_cache_time'):
+            self._file_cache_time = 0
+            self._file_cache_result = []
+        
+        # Return cached result if not too old (use 5-second cache)
+        if now - self._file_cache_time < 5:
+            self.logger.debug(f"Using cached file list (age: {now - self._file_cache_time:.2f}s)")
+            return self._file_cache_result
+        
+        # If we get here, the cache is expired, so make a real request
+        self.logger.info(f"Requesting available files from tracker")
+        
         # Create UDP socket for tracker communication
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_socket.settimeout(5)  # 5 second timeout
@@ -865,7 +907,6 @@ class P2PClient:
             message = "ListFiles:"
             
             # Send request
-            self.logger.info(f"Requesting available files from tracker")
             udp_socket.sendto(message.encode('utf-8'), self.tracker_address)
             
             # Wait for response
@@ -877,16 +918,20 @@ class P2PClient:
                 if response.startswith("FilesList:"):
                     files_list_str = response[len("FilesList:"):]
                     files_list = ast.literal_eval(files_list_str)
+                    
+                    # Update cache before returning
+                    self._file_cache_time = now
+                    self._file_cache_result = files_list
                     return files_list
                 else:
                     self.logger.error(f"Unexpected response format: {response}")
-                    return []
+                    return self._file_cache_result  # Return cached result on error
             except socket.timeout:
                 self.logger.error("Request for file list timed out")
-                return []
+                return self._file_cache_result  # Return cached result on timeout
         except Exception as e:
             self.logger.error(f"Error requesting file list: {e}")
-            return []
+            return self._file_cache_result  # Return cached result on any error
         finally:
             udp_socket.close()
 

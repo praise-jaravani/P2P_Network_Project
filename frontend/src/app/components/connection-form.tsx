@@ -8,6 +8,9 @@ export default function ConnectionForm() {
   const router = useRouter();
   const { connectionSettings, setConnectionSettings, connectToTracker, isLoading, isConnected } = useAppContext();
   
+  // Add tracker mode state
+  const [trackerMode, setTrackerMode] = useState('local'); // 'local' or 'remote'
+  
   const [formData, setFormData] = useState({
     trackerIp: connectionSettings.trackerIp,
     trackerPort: connectionSettings.trackerPort,
@@ -40,13 +43,14 @@ export default function ConnectionForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    console.log("Form submitted with:", formData);
+    console.log("Form submitted with:", formData, "Tracker mode:", trackerMode);
     
     // Update connection settings
     setConnectionSettings({
       ...connectionSettings,
       trackerIp: formData.trackerIp,
       trackerPort: formData.trackerPort,
+      useLocalTracker: trackerMode === 'local',
     });
     
     // Try to connect
@@ -125,6 +129,43 @@ export default function ConnectionForm() {
               onChange={handleChange}
             />
           </div>
+        </div>
+
+        {/* Tracker mode selection */}
+        <div className="mt-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <input
+                id="local-tracker"
+                name="trackerMode"
+                type="radio"
+                checked={trackerMode === 'local'}
+                onChange={() => setTrackerMode('local')}
+                className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="local-tracker" className="ml-2 block text-sm text-gray-600 dark:text-gray-400">
+                Start local tracker
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                id="remote-tracker"
+                name="trackerMode"
+                type="radio"
+                checked={trackerMode === 'remote'}
+                onChange={() => setTrackerMode('remote')}
+                className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="remote-tracker" className="ml-2 block text-sm text-gray-600 dark:text-gray-400">
+                Connect to remote tracker
+              </label>
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {trackerMode === 'local' ? 
+              'Start a tracker on this machine' : 
+              'Connect to an existing tracker on another machine'}
+          </p>
         </div>
 
         <div>

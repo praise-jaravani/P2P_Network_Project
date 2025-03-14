@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { SystemStatus, File, ConnectionSettings } from '../types';
-import { getSystemStatus, getAvailableFiles, downloadFile } from '../lib/api';
+import { getSystemStatus, getAvailableFiles, downloadFile, configureTracker } from '../lib/api';
 import { getWebSocketClient } from '../lib/websocket';
 import { debounce } from 'lodash';
 
@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: ConnectionSettings = {
   trackerPort: '12345',
   downloadDir: './downloads',
   autoSeed: true,
+  useLocalTracker: true,
 };
 
 // Define context type
@@ -108,21 +109,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const fetchAvailableFiles = useCallback(async () => {
-    // Don't fetch too frequently
+    // Add a timestamp check to avoid fetching too frequently
     const now = Date.now();
-    if (now - lastFileRefresh < 2000) { // Don't fetch more than once every 2 seconds
-      console.log("Skipping file refresh - too soon since last refresh");
+    if (now - lastFileRefresh < 5000) { // No more than once every 5 seconds
+      console.log("Skipping file refresh - too soon");
       return;
     }
     
     try {
-      console.log("Fetching available files from API");
+      console.log("Fetching available files...");
+      setIsLoading(true);
       const files = await getAvailableFiles();
-      console.log("Available files received:", files);
+      console.log("Files received:", files);
       setAvailableFiles(files);
       setLastFileRefresh(now);
     } catch (error) {
-      console.error('Error fetching available files:', error);
+      console.error("Error fetching files:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [lastFileRefresh]);
 
@@ -165,9 +169,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoading(true);
     
     try {
-      // In a real implementation, you'd have an API endpoint to set the tracker
-      // Since your backend already initializes with the tracker settings,
-      // we'll simulate a connection by checking system status
+      // First configure the backend with the new tracker settings
+      const configSuccess = await configureTracker(
+        connectionSettings.trackerIp,
+        connectionSettings.trackerPort,
+        connectionSettings.useLocalTracker || false
+      );
+      
+      if (!configSuccess) {
+        console.error("Failed to configure tracker on backend");
+        return false;
+      }
+      
+      // Check system status to verify the connection
       console.log("Fetching system status...");
       const status = await getSystemStatus();
       console.log("System status received:", status);
@@ -188,17 +202,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [connectionSettings]);
 
-  // Create debounced version of refreshFiles
-  const debouncedFetchFiles = debounce(async () => {
-    await fetchAvailableFiles();
-  }, 500);
+  // Create debounced version of fetchAvailableFiles
+  const debouncedFetchFiles = useCallback(
+    debounce(async () => {
+      await fetchAvailableFiles();
+    }, 500),
+    [fetchAvailableFiles]
+  );
   
-  // Refresh file list with useCallback
+  // Refresh file list with useCallback (only need one version)
   const refreshFiles = useCallback(async () => {
-    setIsLoading(true);
-    await debouncedFetchFiles();
-    setIsLoading(false);
-  }, [debouncedFetchFiles]);
+    if (isConnected) {
+      setIsLoading(true);
+      await debouncedFetchFiles();
+      setIsLoading(false);
+    }
+  }, [isConnected, debouncedFetchFiles]);
 
   // Start downloading a file with useCallback
   const startDownload = useCallback(async (filename: string): Promise<boolean> => {

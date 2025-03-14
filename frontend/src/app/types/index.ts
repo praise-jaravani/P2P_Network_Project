@@ -37,4 +37,5 @@ export interface File {
     trackerPort: string;
     downloadDir?: string;
     autoSeed: boolean;
+    useLocalTracker?: boolean;
   }

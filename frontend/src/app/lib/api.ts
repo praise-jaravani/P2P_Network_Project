@@ -1,7 +1,7 @@
 import { File, SystemStatus } from "../types/";
 
 // API base URL - this should match your backend URL
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8001/api';
 console.log("API connecting to:", API_BASE);
 
 // Get available files
@@ -92,5 +92,30 @@ export async function getDownloadedFiles(): Promise<string[]> {
   } catch (error) {
     console.error('Failed to fetch downloaded files:', error);
     return [];
+  }
+}
+
+// Configure tracker
+export async function configureTracker(trackerIp: string, trackerPort: string, startLocalTracker: boolean): Promise<boolean> {
+  try {
+    console.log("Configuring tracker:", { trackerIp, trackerPort, startLocalTracker });
+    const response = await fetch(`${API_BASE}/configure`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ trackerIp, trackerPort, startLocalTracker }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error configuring tracker: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Configuration response:", data);
+    return data.success || false;
+  } catch (error) {
+    console.error(`Failed to configure tracker:`, error);
+    return false;
   }
 }
