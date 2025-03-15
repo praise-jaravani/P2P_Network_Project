@@ -2,6 +2,22 @@
 
 A simplified BitTorrent-like peer-to-peer file sharing system with a modern web interface. This project implements a decentralized content sharing system that enables users to download and upload file chunks efficiently from multiple peers.
 
+## Tech Stack
+
+### Backend
+- **Python**: Core language for the backend implementation
+- **FastAPI**: High-performance web framework for building APIs
+- **WebSockets**: For real-time communication with the frontend
+- **UDP/TCP Sockets**: Native Python sockets for P2P communication
+- **Threading**: For concurrent operations
+
+### Frontend
+- **Next.js**: React framework for building the user interface
+- **TypeScript**: For type-safe code
+- **Tailwind CSS**: For styling components
+- **React Context**: For state management
+- **WebSockets**: For real-time updates from the backend
+
 ## Overview
 
 This P2P file sharing system consists of three main components that work together:
@@ -38,6 +54,7 @@ The system utilizes UDP for lightweight tracker communication and TCP for reliab
 │   │   ├── leecher_client.py     # Standalone leecher client
 │   │   ├── seeder_client.py      # Standalone seeder client
 │   │   └── tracker_server.py     # Standalone tracker server
+│   ├── requirements.txt          # Python dependencies
 │   └── main.py                   # FastAPI backend server
 ├── frontend/
 │   ├── src/
@@ -71,7 +88,7 @@ The system utilizes UDP for lightweight tracker communication and TCP for reliab
 
 2. Install the required Python packages:
    ```bash
-   pip install fastapi uvicorn python-multipart watchdog colorama
+   pip install -r requirements.txt
    ```
 
 3. Create directories for file storage:
