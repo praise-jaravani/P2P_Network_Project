@@ -11,7 +11,7 @@ export default function FileList() {
   
   // Search functionality
   const filteredFiles = availableFiles.filter(file => 
-    file.filename.toLowerCase().includes(searchTerm.toLowerCase())
+    file && file.filename && file.filename.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   // Handle search input change

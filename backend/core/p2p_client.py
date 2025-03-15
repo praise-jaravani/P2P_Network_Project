@@ -149,6 +149,9 @@ class P2PClient:
             return
         
         if self.mode == 'seeder' or self.has_seeder_capability:
+            # Start UDP listener for direct messages (like ListFiles requests)
+            self.start_udp_listener()
+            
             # Start TCP server for serving chunks
             self.tcp_thread = threading.Thread(target=self._start_tcp_server)
             self.tcp_thread.daemon = True
@@ -189,19 +192,18 @@ class P2PClient:
     # ===== Tracker communication =====
     
     def register_with_tracker(self) -> bool:
-        """
-        Register this client with the tracker.
-        
-        Returns:
-            True if registration was successful, False otherwise
-        """
+        """Register this client with the tracker."""
         try:
             # Create UDP socket for tracker communication
             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             udp_socket.settimeout(5)  # 5 second timeout
             
+            # Get an appropriate IP address to advertise
+            advertised_ip = self.get_advertised_ip()
+            advertised_address = (advertised_ip, self.port)
+            
             # Prepare registration message
-            message = f"Register:{self.address}"
+            message = f"Register:{advertised_address}"
             
             # Send registration request
             self.logger.info(f"Registering with tracker at {self.tracker_address}")
@@ -230,6 +232,45 @@ class P2PClient:
                 udp_socket.close()
             except:
                 pass
+            
+    def get_advertised_ip(self) -> str:
+        """
+        Get the appropriate IP address to advertise to the tracker.
+        
+        Returns:
+            A valid IP address that other peers can use to connect to this client
+        """
+        # If the self.ip is not 0.0.0.0, use it
+        if self.ip != "0.0.0.0":
+            return self.ip
+        
+        # For local testing, if the tracker is on localhost, use localhost
+        if self.tracker_address and (
+            self.tracker_address[0] == "127.0.0.1" or 
+            self.tracker_address[0] == "localhost"
+        ):
+            return "127.0.0.1"
+        
+        # Try to get the local network IP
+        try:
+            # Create a temporary socket to determine which interface would be used
+            # to connect to the tracker
+            temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            # This doesn't actually establish a connection, but it helps determine
+            # which interface would be used
+            tracker_ip = self.tracker_address[0] if self.tracker_address else "8.8.8.8"
+            temp_socket.connect((tracker_ip, 80))
+            
+            # Get the IP of the interface that would be used
+            local_ip = temp_socket.getsockname()[0]
+            temp_socket.close()
+            
+            self.logger.info(f"Determined local IP address: {local_ip}")
+            return local_ip
+        except Exception as e:
+            self.logger.warning(f"Failed to determine local IP: {e}, falling back to 127.0.0.1")
+            return "127.0.0.1"
     
     def _send_heartbeats(self):
         """Periodically send heartbeats to the tracker while running"""
@@ -239,8 +280,12 @@ class P2PClient:
                 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 udp_socket.settimeout(5)  # 5 second timeout
                 
+                # Get the appropriate IP to advertise
+                advertised_ip = self.get_advertised_ip()
+                advertised_address = (advertised_ip, self.port)
+                
                 # Prepare heartbeat message
-                message = f"HeartBeat:{self.address}"
+                message = f"HeartBeat:{advertised_address}"
                 
                 # Send heartbeat
                 udp_socket.sendto(message.encode('utf-8'), self.tracker_address)
@@ -934,6 +979,54 @@ class P2PClient:
             return self._file_cache_result  # Return cached result on any error
         finally:
             udp_socket.close()
+            
+    # In the P2PClient class, add this method:
+    def start_udp_listener(self):
+        """Start a UDP server to listen for direct UDP messages from the tracker"""
+        udp_thread = threading.Thread(target=self._udp_listener_thread)
+        udp_thread.daemon = True
+        udp_thread.start()
+        self.threads.append(udp_thread)
+        self.logger.info(f"Started UDP listener on {self.ip}:{self.port}")
+
+    def _udp_listener_thread(self):
+        """Thread to listen for UDP messages (especially ListFiles requests)"""
+        try:
+            # Create UDP socket for direct communication
+            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            udp_socket.bind((self.ip, self.port))
+            
+            while self.running:
+                try:
+                    # Set a timeout to allow checking the running flag
+                    udp_socket.settimeout(1.0)
+                    
+                    try:
+                        # Wait for a message
+                        data, addr = udp_socket.recvfrom(4096)
+                        message = data.decode('utf-8')
+                        self.logger.info(f"Received UDP message from {addr}: {message}")
+                        
+                        # Handle different message types
+                        if message.startswith("ListFiles:"):
+                            files = self._scan_files()
+                            response = f"FilesList:{files}"
+                            self.logger.info(f"Responding to ListFiles request with {len(files)} files")
+                            udp_socket.sendto(response.encode('utf-8'), addr)
+                        
+                    except socket.timeout:
+                        # This is expected, just allows checking running flag
+                        continue
+                except Exception as e:
+                    if self.running:  # Only log errors if we're still running
+                        self.logger.error(f"UDP listener error: {e}")
+        except Exception as e:
+            self.logger.error(f"Failed to start UDP listener: {e}")
+        finally:
+            try:
+                udp_socket.close()
+            except:
+                pass
 
 
 # Example usage

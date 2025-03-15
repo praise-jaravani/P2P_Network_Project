@@ -1,7 +1,7 @@
 import { File, SystemStatus } from "../types/";
 
 // API base URL - this should match your backend URL
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8001/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 console.log("API connecting to:", API_BASE);
 
 // Get available files

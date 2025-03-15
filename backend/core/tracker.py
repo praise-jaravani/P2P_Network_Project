@@ -149,7 +149,7 @@ def seek_file(leecher, filename):
 
 def get_all_available_files():
     """
-    Get a list of all unique files available from all seeders.
+    Get a list of all unique files available from all seeders using UDP.
     
     Returns:
         list: A list of all unique filenames available
@@ -160,37 +160,43 @@ def get_all_available_files():
     with seeders_lock:
         active_seeders = [(ip, port) for ip, port, _ in seeders]
     
-    # Query each seeder for their available files
-    for seeder_address in active_seeders:
-        try:
-            # Create TCP socket for communication
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.settimeout(2)  # Short timeout
-            client_socket.connect(seeder_address)
-            
-            # Send the ListFiles request
-            request = "ListFiles:"
-            client_socket.send(request.encode('utf-8'))
-            
-            # Get the response
-            response = client_socket.recv(4096).decode('utf-8')
-            client_socket.close()
-            
-            # Parse the response
-            if response.startswith("FilesList:"):
-                files_str = response.split(":", 1)[1]
+    # Create a UDP socket for querying seeders
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.settimeout(10)  # Increased to 10 seconds
+    logging.info(f"Requesting file list from {len(active_seeders)} active seeders")
+    
+    try:
+        # Query each seeder for their available files
+        for seeder_address in active_seeders:
+            try:
+                # Send the ListFiles request via UDP
+                logging.info(f"Sending ListFiles request to {seeder_address}")
+                request = "ListFiles:"
+                udp_socket.sendto(request.encode('utf-8'), seeder_address)
+                
+                # Wait for response
                 try:
-                    import ast
-                    files = ast.literal_eval(files_str)
-                    all_files.update(files)
-                    logging.debug(f"Seeder {seeder_address} has files: {files}")
-                except Exception as e:
-                    logging.error(f"Error parsing file list from {seeder_address}: {e}")
-        except Exception as e:
-            logging.error(f"Error querying seeder {seeder_address} for files: {e}")
+                    response, _ = udp_socket.recvfrom(4096)
+                    response = response.decode('utf-8')
+                    
+                    # Parse the response
+                    if response.startswith("FilesList:"):
+                        files_str = response.split(":", 1)[1]
+                        try:
+                            import ast
+                            files = ast.literal_eval(files_str)
+                            all_files.update(files)
+                            logging.debug(f"Seeder {seeder_address} has files: {files}")
+                        except Exception as e:
+                            logging.error(f"Error parsing file list from {seeder_address}: {e}")
+                except socket.timeout:
+                    logging.warning(f"Timeout waiting for file list from {seeder_address}")
+            except Exception as e:
+                logging.error(f"Error querying seeder {seeder_address} for files: {e}")
+    finally:
+        udp_socket.close()
     
     return list(all_files)
-
 
 def start_tracker():
     """Start the UDP tracker and keep it running, managing seeders and requests."""
