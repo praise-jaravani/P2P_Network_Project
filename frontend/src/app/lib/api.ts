@@ -16,7 +16,23 @@ export async function getAvailableFiles(): Promise<File[]> {
     
     const data = await response.json();
     console.log("Files response:", data);
-    return data.files || [];
+    
+    // Check if we have an array of strings and convert to File objects
+    if (data.files && Array.isArray(data.files)) {
+      if (data.files.length > 0 && typeof data.files[0] === 'string') {
+        // Convert string array to File objects with proper type annotation
+        const fileObjects = data.files.map((filename: string) => ({ 
+          filename,
+          // Optional: You could add default values for other properties
+          // size: 0,
+          // seeders: 0
+        }));
+        console.log("Converted file objects:", fileObjects);
+        return fileObjects;
+      }
+      return data.files; // Already in correct format
+    }
+    return [];
   } catch (error) {
     console.error('Failed to fetch available files:', error);
     return [];
