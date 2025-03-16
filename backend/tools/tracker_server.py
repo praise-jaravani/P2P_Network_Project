@@ -227,7 +227,7 @@ def enhance_tracker_logging():
     def enhanced_register_seeder(seeder):
         """Enhanced version of register_seeder with better logging."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"\n{colorama.Fore.GREEN}[{timestamp}] 🆕 Registration request from seeder: {seeder}{colorama.Style.RESET_ALL}")
+        print(f"\n{colorama.Fore.GREEN}[{timestamp}] Registration request from seeder: {seeder}{colorama.Style.RESET_ALL}")
         result = original_register_seeder(seeder)
         print(f"{colorama.Fore.WHITE}   Result: {result}{colorama.Style.RESET_ALL}")
         return result
@@ -235,14 +235,14 @@ def enhance_tracker_logging():
     def enhanced_keep_alive(seeder):
         """Enhanced version of keep_alive with better logging."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"{colorama.Fore.BLUE}[{timestamp}] 💓 Heartbeat from seeder: {seeder}{colorama.Style.RESET_ALL}")
+        print(f"{colorama.Fore.BLUE}[{timestamp}] Heartbeat from seeder: {seeder}{colorama.Style.RESET_ALL}")
         result = original_keep_alive(seeder)
         return result
     
     def enhanced_seek_file(leecher, filename):
         """Enhanced version of seek_file with better logging."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"\n{colorama.Fore.MAGENTA}[{timestamp}] 🔍 Leecher {leecher if leecher else 'unknown'} seeking file: {filename}{colorama.Style.RESET_ALL}")
+        print(f"\n{colorama.Fore.MAGENTA}[{timestamp}] Leecher {leecher if leecher else 'unknown'} seeking file: {filename}{colorama.Style.RESET_ALL}")
         result = original_seek_file(leecher, filename)
         print(f"{colorama.Fore.WHITE}   Found {len(result)} seeders for {filename}{colorama.Style.RESET_ALL}")
         return result
@@ -250,7 +250,7 @@ def enhance_tracker_logging():
     def enhanced_get_all_available_files():
         """Enhanced version of get_all_available_files with better logging."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"\n{colorama.Fore.CYAN}[{timestamp}] 📋 Request for all available files{colorama.Style.RESET_ALL}")
+        print(f"\n{colorama.Fore.CYAN}[{timestamp}] Request for all available files{colorama.Style.RESET_ALL}")
         result = original_get_all_available_files()
         print(f"{colorama.Fore.WHITE}   Found {len(result)} files: {result}{colorama.Style.RESET_ALL}")
         return result
