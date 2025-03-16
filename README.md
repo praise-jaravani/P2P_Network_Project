@@ -1,6 +1,6 @@
 # P2P File Sharing System
 
-A simplified BitTorrent-like peer-to-peer file sharing system with a modern web interface. This project implements a decentralized content sharing system that enables users to download and upload file chunks efficiently from multiple peers.
+A simplified BitTorrent-like peer-to-peer file-sharing system with a modern web interface. This project implements a decentralised content-sharing system that enables users to download and upload file chunks efficiently from multiple peers.
 
 ## Tech Stack
 
@@ -20,7 +20,7 @@ A simplified BitTorrent-like peer-to-peer file sharing system with a modern web 
 
 ## Overview
 
-This P2P file sharing system consists of three main components that work together:
+This P2P file-sharing system consists of three main components that work together:
 
 1. **Tracker** - Coordinates peer discovery and file availability
 2. **Seeder** - Provides file chunks for download
@@ -85,13 +85,18 @@ The system utilizes UDP for lightweight tracker communication and TCP for reliab
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-
-2. Install the required Python packages:
+   
+2. Navigate to the backend directory
+   ```bash
+   cd backend
+   ```
+   
+3. Install the required Python packages:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Create directories for file storage:
+4. Create directories for file storage:
    ```bash
    mkdir -p files seeder_files
    ```
@@ -112,13 +117,14 @@ The system utilizes UDP for lightweight tracker communication and TCP for reliab
 
 ## Running the System
 
-The components must be started in the correct sequence for the system to work properly.
+The components must be started in the correct sequence for the system to work properly. Run each component in a new terminal window, and ensure that you are in the env you created (if one was created).
 
 ### 1. Start the Tracker Server
 
 The tracker coordinates peer discovery and file availability.
 
 ```bash
+cd backend/tools
 python3 tracker_server.py --ip 127.0.0.1 --port 12345
 ```
 
@@ -127,6 +133,7 @@ python3 tracker_server.py --ip 127.0.0.1 --port 12345
 The seeder shares files with the network.
 
 ```bash
+cd backend/tools
 python3 seeder_client.py --ip 127.0.0.1 --port 8001 --tracker-ip 127.0.0.1 --tracker-port 12345 --files-dir ./seeder_files
 ```
 
@@ -135,6 +142,7 @@ python3 seeder_client.py --ip 127.0.0.1 --port 8001 --tracker-ip 127.0.0.1 --tra
 The backend API server provides a bridge between the web interface and the P2P network.
 
 ```bash
+cd backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -143,6 +151,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 The frontend provides a user-friendly interface for interacting with the P2P network.
 
 ```bash
+cd frontend
 npm run dev
 # or
 yarn dev
@@ -280,16 +289,6 @@ The `FileChunker` class handles:
    - After a file is completely downloaded, the leecher can become a seeder
    - The client registers with the tracker as a seeder for the downloaded file
    - Other peers can now download chunks from this peer
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 
