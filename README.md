@@ -96,10 +96,6 @@ The system utilizes UDP for lightweight tracker communication and TCP for reliab
    pip install -r requirements.txt
    ```
 
-4. Create directories for file storage:
-   ```bash
-   mkdir -p files seeder_files
-   ```
 
 ### Frontend Setup
 
